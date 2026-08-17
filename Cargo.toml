@@ -1,0 +1,12 @@
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+default-members = ["crates/neomekanix_desktop"]
+members = [
+    "crates/neomekanix_core",
+    "crates/neomekanix_desktop",
+]
+
+resolver = "3"
