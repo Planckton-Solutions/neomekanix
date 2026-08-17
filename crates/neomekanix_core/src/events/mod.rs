@@ -14,10 +14,15 @@ pub enum EventType {
 #[derive(Debug, Copy, Clone)]
 pub enum WindowEvent {
     Close,
-    Resize(i32, i32),
+    Destroyed,
+    Resize(u32, u32),
     Focus,
     Blur,
     Move(i32, i32),
+    ScaleFactorChanged(f64),
+    ThemeChanged(winit::window::Theme),
+    Occluded(bool),
+    RedrawRequested,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -234,6 +239,28 @@ impl From<winit::event::Modifiers> for Modifiers {
 impl From<winit::keyboard::ModifiersState> for Modifiers {
     fn from(mods: winit::keyboard::ModifiersState) -> Self {
         Modifiers::from_bits_retain(mods.bits())
+    }
+}
+
+impl TryFrom<winit::event::WindowEvent> for WindowEvent {
+    type Error = winit::event::WindowEvent;
+
+    fn try_from(event: winit::event::WindowEvent) -> Result<Self, Self::Error> {
+        match event {
+            winit::event::WindowEvent::CloseRequested => Ok(Self::Close),
+            winit::event::WindowEvent::Destroyed => Ok(Self::Destroyed),
+            winit::event::WindowEvent::Resized(size) => Ok(Self::Resize(size.width, size.height)),
+            winit::event::WindowEvent::Focused(true) => Ok(Self::Focus),
+            winit::event::WindowEvent::Focused(false) => Ok(Self::Blur),
+            winit::event::WindowEvent::Moved(position) => Ok(Self::Move(position.x, position.y)),
+            winit::event::WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                Ok(Self::ScaleFactorChanged(scale_factor))
+            }
+            winit::event::WindowEvent::ThemeChanged(theme) => Ok(Self::ThemeChanged(theme)),
+            winit::event::WindowEvent::Occluded(occluded) => Ok(Self::Occluded(occluded)),
+            winit::event::WindowEvent::RedrawRequested => Ok(Self::RedrawRequested),
+            event => Err(event),
+        }
     }
 }
 
