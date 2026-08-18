@@ -278,3 +278,130 @@ impl From<winit::event::MouseButton> for MouseButton {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use winit::{
+        dpi::{PhysicalPosition, PhysicalSize},
+        event::WindowEvent as WinitWindowEvent,
+        keyboard::{KeyCode, ModifiersState},
+        window::Theme,
+    };
+
+    #[test]
+    fn converts_window_events() {
+        let cases = [
+            (WinitWindowEvent::CloseRequested, "close"),
+            (WinitWindowEvent::Destroyed, "destroyed"),
+            (
+                WinitWindowEvent::Resized(PhysicalSize::new(1280, 720)),
+                "resize",
+            ),
+            (WinitWindowEvent::Focused(true), "focus"),
+            (WinitWindowEvent::Focused(false), "blur"),
+            (
+                WinitWindowEvent::Moved(PhysicalPosition::new(-12, 34)),
+                "move",
+            ),
+            (WinitWindowEvent::ThemeChanged(Theme::Dark), "theme"),
+            (WinitWindowEvent::Occluded(true), "occluded"),
+            (WinitWindowEvent::RedrawRequested, "redraw"),
+        ];
+
+        for (event, expected) in cases {
+            let converted = WindowEvent::try_from(event).expect("event should be supported");
+            let matches = match (converted, expected) {
+                (WindowEvent::Close, "close")
+                | (WindowEvent::Destroyed, "destroyed")
+                | (WindowEvent::Focus, "focus")
+                | (WindowEvent::Blur, "blur")
+                | (WindowEvent::ThemeChanged(Theme::Dark), "theme")
+                | (WindowEvent::Occluded(true), "occluded")
+                | (WindowEvent::RedrawRequested, "redraw") => true,
+                (WindowEvent::Resize(1280, 720), "resize") => true,
+                (WindowEvent::Move(-12, 34), "move") => true,
+                _ => false,
+            };
+            assert!(matches, "incorrect conversion for {expected}");
+        }
+    }
+
+    #[test]
+    fn returns_unsupported_window_event_unchanged() {
+        let path = PathBuf::from("scene.neo");
+        let result = WindowEvent::try_from(WinitWindowEvent::DroppedFile(path.clone()));
+
+        match result {
+            Err(WinitWindowEvent::DroppedFile(returned_path)) => assert_eq!(returned_path, path),
+            _ => panic!("unsupported event was not returned to the caller"),
+        }
+    }
+
+    #[test]
+    fn converts_modifier_bits_and_combinations() {
+        let state = ModifiersState::SHIFT | ModifiersState::CONTROL | ModifiersState::SUPER;
+        let modifiers = Modifiers::from(state);
+
+        assert!(modifiers.contains(Modifiers::SHIFT));
+        assert!(modifiers.contains(Modifiers::CTRL));
+        assert!(modifiers.contains(Modifiers::SUPER));
+        assert!(!modifiers.contains(Modifiers::ALT));
+        assert_eq!(Modifiers::from(ModifiersState::empty()), Modifiers::empty());
+    }
+
+    #[test]
+    fn converts_mouse_buttons() {
+        let cases = [
+            (winit::event::MouseButton::Left, "primary"),
+            (winit::event::MouseButton::Right, "secondary"),
+            (winit::event::MouseButton::Middle, "middle"),
+            (winit::event::MouseButton::Back, "back"),
+            (winit::event::MouseButton::Forward, "forward"),
+            (winit::event::MouseButton::Other(42), "other"),
+        ];
+
+        for (button, expected) in cases {
+            let matches = matches!(
+                (MouseButton::from(button), expected),
+                (MouseButton::Primary, "primary")
+                    | (MouseButton::Secondary, "secondary")
+                    | (MouseButton::Middle, "middle")
+                    | (MouseButton::Back, "back")
+                    | (MouseButton::Forward, "forward")
+                    | (MouseButton::Button6, "other")
+            );
+            assert!(matches, "incorrect conversion for {expected}");
+        }
+    }
+
+    #[test]
+    fn converts_representative_key_codes() {
+        let cases = [
+            (KeyCode::KeyA, "letter"),
+            (KeyCode::Digit7, "digit"),
+            (KeyCode::NumpadAdd, "numpad"),
+            (KeyCode::F24, "function"),
+            (KeyCode::ControlRight, "modifier"),
+            (KeyCode::ArrowLeft, "navigation"),
+            (KeyCode::Backquote, "punctuation"),
+            (KeyCode::BrowserBack, "unknown"),
+        ];
+
+        for (key, expected) in cases {
+            let matches = matches!(
+                (Key::from(key), expected),
+                (Key::A, "letter")
+                    | (Key::Digit7, "digit")
+                    | (Key::NumPlus, "numpad")
+                    | (Key::F24, "function")
+                    | (Key::CtrlRight, "modifier")
+                    | (Key::Left, "navigation")
+                    | (Key::BackTick, "punctuation")
+                    | (Key::Unknown, "unknown")
+            );
+            assert!(matches, "incorrect conversion for {expected}");
+        }
+    }
+}
